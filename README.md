@@ -24,8 +24,6 @@ Minimal task tracking API with planned MCP tool integration.
 - coverage (pytest-cov)
 - Ruff (lint)
 - Black (format)
-- mypy (optional typing)
-- Faker / Factory Boy (optional test data)
 
 ### Supporting
 - Uvicorn (ASGI server)
