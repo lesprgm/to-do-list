@@ -17,7 +17,7 @@ def save_tasks(tasks: List[dict]):
     with open(TASKS_FILE, 'w') as f:
         json.dump(tasks, f, indent=4)
 
-@app.get("/tasks")
+@router.get("/tasks")
 def list_tasks(
     owner_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
