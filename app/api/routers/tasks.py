@@ -21,9 +21,10 @@ def list_tasks(db: Session = Depends(deps.get_db)):
 # POST /v1/tasks
 # ---------------------------
 @router.post(
-    "/", 
-    response_model=TaskRead, 
-    status_code=status.HTTP_201_CREATED
+    "/",
+    response_model=TaskRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={400: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
 )
 def create_task(task: TaskCreate, db: Session = Depends(deps.get_db)):
     return task_service.create_task(db, task)
