@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
-import pytest_
+import pytest
 from fastapi import FastAPI
-from list_tasks import router
+from app.api.routers.list_tasks import router
 import json
 
 app = FastAPI()
@@ -12,7 +12,7 @@ client = TestClient(app)
 def test_list_tasks_empty(tmp_path, monkeypatch):
     # Use a temporary file for tasks.json
     tasks_file = tmp_path / "tasks.json"
-    monkeypatch.setattr("list_tasks.TASKS_FILE", str(tasks_file))
+    monkeypatch.setattr("app.api.routers.list_tasks.TASKS_FILE", str(tasks_file))
 
     response = client.get("/tasks")
     assert response.status_code == 200
@@ -20,7 +20,7 @@ def test_list_tasks_empty(tmp_path, monkeypatch):
 
 def test_list_tasks_with_data(tmp_path, monkeypatch):
     test_file = tmp_path / "tasks.json"
-    monkeypatch.setattr("list_tasks.TASKS_FILE", str(test_file))
+    monkeypatch.setattr("app.api.routers.list_tasks.TASKS_FILE", str(test_file))
 
     test_data = [
         {"id": 1, "title": "Do homework", "owner_id": "1", "status": "pending", "priority": "high"},
