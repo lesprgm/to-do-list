@@ -7,7 +7,7 @@ from app.schemas.task import TaskCreate, TaskRead
 from app.schemas.error import ErrorResponse
 from app.services import tasks as task_service
 
-router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
+router = APIRouter(tags=["tasks"])
 
 # ---------------------------
 # GET /v1/tasks
