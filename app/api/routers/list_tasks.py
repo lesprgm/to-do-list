@@ -22,7 +22,7 @@ def save_tasks(tasks: List[dict]):
 
 @router.get("/tasks")
 def list_tasks(
-    owner_id: Optional[str] = Query(None),
+    task_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
@@ -31,8 +31,8 @@ def list_tasks(
 ):
     tasks = load_tasks()
 
-    if owner_id is not None:
-        tasks = [t for t in tasks if t["owner_id"] == owner_id]
+    if task_id is not None:
+        tasks = [t for t in tasks if t["task_id"] == task_id]
 
     if status is not None:
         tasks = [t for t in tasks if t["status"] == status]
