@@ -23,9 +23,9 @@ def test_list_tasks_with_data(tmp_path, monkeypatch):
     monkeypatch.setattr("app.api.routers.list_tasks.TASKS_FILE", str(test_file))
 
     test_data = [
-        {"id": 1, "title": "Do homework", "owner_id": "1", "status": "pending", "priority": "high"},
-        {"id": 2, "title": "Clean room", "owner_id": "2", "status": "done", "priority": "low"},
-        {"id": 3, "title": "Buy groceries", "owner_id": "1", "status": "pending", "priority": "medium"},
+        {"id": 1, "title": "Do homework", "task_id": "1", "status": "pending", "priority": "high"},
+        {"id": 2, "title": "Clean room", "task_id": "2", "status": "done", "priority": "low"},
+        {"id": 3, "title": "Buy groceries", "task_id": "1", "status": "pending", "priority": "medium"},
     ]
     with open(test_file, 'w') as f:
         json.dump(test_data, f)
@@ -35,7 +35,7 @@ def test_list_tasks_with_data(tmp_path, monkeypatch):
     assert response.json() == test_data
 
     # Filter by id
-    response = client.get("/tasks", params={'owner_id' : '1'})
+    response = client.get("/tasks", params={'task_id' : '1'})
     assert response.status_code == 200
     assert response.json() == [test_data[0], test_data[2]]
 
