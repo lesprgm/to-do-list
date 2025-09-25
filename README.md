@@ -1,198 +1,176 @@
 # to-do-list
 
-## MCP tools for Claude Desktop
+Minimal FastAPI-based tasks API with SQLite and an MCP server so Claude Desktop or the MCP CLI can create/list/update/delete tasks.
 
-This repo ships a minimal MCP server that exposes two tools over stdio so Claude Desktop (and the MCP CLI) can interact with your API:
+## Quick start
 
-- List Tasks → calls GET `/v1/tasks` with optional filters and returns structured JSON.
-- Create Task → calls POST `/v1/tasks` and returns the created task JSON.
-
-Server code is at `app/mcp_tools/server.py` using `from mcp.server.fastmcp import FastMCP`.
-
-### Install (MCP CLI and runtime)
+1) Create and activate a virtualenv, then install deps
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install "mcp[cli]" requests
 ```
 
-Start your API in one terminal:
+2) Run the API
 
 ```bash
 uvicorn app.api.main:app --reload
 ```
 
-Run the MCP server in another terminal:
+The API will be available at http://127.0.0.1:8000.
+
+3) Run the MCP server (optional, for tools)
 
 ```bash
+# In a second terminal (API must be running)
+source .venv/bin/activate
+export TODO_API_BASE_URL="http://127.0.0.1:8000"
 python app/mcp_tools/server.py
 ```
 
-By default it targets `http://127.0.0.1:8000`; override with `TODO_API_BASE_URL`.
-
-### Try via MCP CLI (optional)
-
-List available tools:
+Or via MCP CLI:
 
 ```bash
+pip install -U "mcp[cli]" requests
 mcp tools stdio -- python app/mcp_tools/server.py
+# or the dev inspector
+mcp dev "$(pwd)/app/mcp_tools/server.py"
 ```
 
-Call Create Task:
+## How to run tests
+
+From the project root (recommended):
 
 ```bash
+source .venv/bin/activate
+pytest -q
+```
+
+If you prefer not to rely on the current working directory, set PYTHONPATH to the repo root:
+
+```bash
+PYTHONPATH="$PWD" pytest -q
+```
+
+Run a single file or a single test:
+
+```bash
+pytest -q tests/unit/test_create_task.py
+pytest -q tests/unit/test_create_task.py::test_create_task_happy_path
+```
+
+Tip: If `pytest -q` fails only when run from a subfolder, either run it from the repo root or add this to a `pytest.ini`:
+
+```ini
+[pytest]
+addopts = -q --import-mode=prepend
+testpaths = tests
+```
+
+## API overview
+
+- POST `/v1/tasks/` → Create a task
+- GET `/v1/tasks/` → List tasks
+  - Optional filters: `task_id` (int), `status` (todo|in_progress|done), `priority` (low|med|high)
+- PATCH `/v1/tasks/{task_id}` → Partial update
+- DELETE `/v1/tasks/{task_id}` → Delete
+
+Example create:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/v1/tasks/ \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "title": "Buy milk",
+    "priority": "high",
+    "tags": ["groceries"],
+    "due_date": "2025-09-15T12:00:00Z"
+  }'
+```
+
+## MCP tools for Claude Desktop
+
+The MCP server at `app/mcp_tools/server.py` exposes four tools over stdio:
+
+- List Tasks → GET `/v1/tasks` with optional filters
+- Create Task → POST `/v1/tasks`
+- Update Task → PATCH `/v1/tasks/{task_id}`
+- Delete Task → DELETE `/v1/tasks/{task_id}`
+
+### Try via MCP CLI
+
+```bash
+export TODO_API_BASE_URL="http://127.0.0.1:8000"
+mcp tools stdio -- python app/mcp_tools/server.py
+
+# Create
 mcp call stdio -- python app/mcp_tools/server.py \
   "Create Task" \
   '{"title":"Buy milk","priority":"high","due_date":"2025-09-15T12:00:00Z","tags":["groceries"]}'
-```
 
-Expected JSON (201):
-
-```json
-{
-  "ok": true,
-  "status": 201,
-  "url": "http://127.0.0.1:8000/v1/tasks/",
-  "data": {
-    "id": 1,
-    "title": "Buy milk",
-    "description": null,
-    "status": "todo",
-    "priority": "high",
-    "tags": ["groceries"],
-    "due_date": "2025-09-15T12:00:00Z",
-    "created_at": "2025-09-15T10:00:00Z",
-    "updated_at": "2025-09-15T10:00:00Z"
-  }
-}
-```
-
-List Tasks:
-
-```bash
+# List
 mcp call stdio -- python app/mcp_tools/server.py "List Tasks"
 ```
 
 ### Claude Desktop config (mcpServers)
 
-Add an entry for the MCP server in Claude Desktop’s config JSON.
-
-macOS (~/Library/Application Support/Claude/claude_desktop_config.json):
+macOS (~/.config path varies by version; common path shown):
 
 ```json
 {
   "mcpServers": {
     "to-do-list": {
       "command": "/usr/bin/python3",
-      "args": ["/absolute/path/to/your/repo/app/mcp_tools/server.py"],
-      "env": {
-        "TODO_API_BASE_URL": "http://127.0.0.1:8000"
-      }
+      "args": ["/absolute/path/to/repo/app/mcp_tools/server.py"],
+      "env": { "TODO_API_BASE_URL": "http://127.0.0.1:8000" }
     }
   }
 }
 ```
 
-Windows (C:\\Users\\<you>\\AppData\\Roaming\\Claude\\claude_desktop_config.json):
+Restart Claude Desktop to pick up changes. Use “List available actions” to see the tools.
 
-```json
-{
-  "mcpServers": {
-    "to-do-list": {
-      "command": "C:\\\Python\\\python.exe",
-      "args": ["C:\\\absolute\\\path\\\to\\\repo\\\app\\\mcp_tools\\\server.py"],
-      "env": {
-        "TODO_API_BASE_URL": "http://127.0.0.1:8000"
-      }
-    }
-  }
-}
-```
+## Project structure
 
-After saving, restart Claude Desktop and run “List available actions”. You should see both tools (List Tasks, Create Task). If your API isn’t running, the tools will return a 502/connection error.
-
-Minimal task tracking API with planned MCP tool integration.
-
-## Tech Stack
-
-### Languages
-- Python 3.12
-
-### Frameworks & Core Libraries
-- FastAPI (REST API)
-- Pydantic v2 (validation & schemas)
-- SQLAlchemy 2.0 (ORM / DB access)
-- Alembic (migrations)
-- httpx (HTTP client & tests)
-- FastMCP (MCP tools integration)
-
-### Database
-- PostgreSQL (primary target)
-- SQLite (local / initial development)
-
-### Testing & Quality
-- pytest
-- coverage (pytest-cov)
-- Ruff (lint)
-- Black (format)
-
-### Supporting
-- Uvicorn (ASGI server)
-- Poetry or Hatch (dependency management)
-- Pre-commit (hooks)
-
-## Project Structure
 ```text
-to_do_list/
-  pyproject.toml
-  README.md
-  .gitignore
-  .env.example
-
-  app/
-    core/
-      config.py
-      logging.py
-    db/
-      base.py
-      session.py
-      models/
-        task.py
-      migrations/
-    schemas/
-      task.py
-      common.py
-      error.py
-    services/
-      tasks.py
-    api/
-      deps.py
-      routers/
-        tasks.py
-      main.py
-    mcp_tools/
-      __init__.py
-      list_tasks.py
-      create_task.py
-      client.py
-
-  tests/
-    conftest.py
-    integration/
-      test_tasks_api.py
-    unit/
-      test_tasks_service.py
-      test_task_validation.py
-    factories/
-      task_factory.py
-
-  scripts/
-    seed_tasks.py
-    generate_example_data.py
+.
+├─ requirements.txt
+├─ README.md
+├─ app/
+│  ├─ api/
+│  │  ├─ main.py
+│  │  ├─ deps.py
+│  │  └─ routers/
+│  │     └─ tasks.py
+│  ├─ db/
+│  │  ├─ __init__.py
+│  │  └─ models/
+│  │     ├─ __init__.py
+│  │     └─ task.py
+│  ├─ schemas/
+│  │  ├─ __init__.py
+│  │  ├─ task.py
+│  │  └─ error.py
+│  ├─ services/
+│  │  └─ tasks.py
+│  └─ mcp_tools/
+│     └─ server.py
+├─ tests/
+│  └─ unit/
+│     ├─ test_create_task.py
+│     ├─ test_list_task.py
+│     ├─ test_update_task.py
+│     └─ test_delete_task.py
+└─ scripts/
 ```
 
-## MCP Tools (Planned)
-- list_tasks (wraps GET /v1/tasks)
-- create_task (wraps POST /v1/tasks)
+## Troubleshooting
+
+- `pytest -q` fails but `PYTHONPATH="$PWD" pytest -q` works:
+  - Make sure you run from the repo root, or add the `pytest.ini` above to force root-prepend import mode.
+- MCP CLI shows 5xx or connection errors:
+  - Ensure the API is running and `TODO_API_BASE_URL` is set correctly.
+- PATCH returns 405:
+  - Confirm you’re calling `/v1/tasks/{id}` with JSON body (not query params).
+
