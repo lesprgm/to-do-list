@@ -50,3 +50,32 @@ class TaskRead(TaskBase):
 
     class Config:
         from_attributes = True
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    due_date: datetime | None = None
+    priority: Priority | None = None
+    status: Literal["todo", "in_progress", "done"] | None = None
+    tags: list[str] | None = None
+
+    @field_validator("due_date")
+    @classmethod
+    def ensure_utc(cls, v: datetime | None) -> datetime | None:
+        if v is None:
+            return v
+        if v.tzinfo is None or v.tzinfo.utcoffset(v) is None:
+            raise ValueError("due_date must include timezone (UTC)")
+        if v.astimezone(timezone.utc).utcoffset() != timezone.utc.utcoffset(v):
+            raise ValueError("due_date must be in UTC (e.g., 2025-09-15T12:00:00Z)")
+        return v.astimezone(timezone.utc)
+
+    @field_validator("title")
+    @classmethod
+    def title_not_empty(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not v.strip():
+            raise ValueError("title must be non-empty")
+        return v

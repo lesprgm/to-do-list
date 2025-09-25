@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.models.task import Task
-from app.schemas.task import TaskCreate
+from app.schemas.task import TaskCreate, TaskUpdate
 
 def delete_task(db: Session, task_id: int) -> bool:
     task = db.get(Task, task_id)
@@ -63,3 +63,26 @@ def _normalize_task_datetimes(task: Task) -> None:
         task.created_at = task.created_at.replace(tzinfo=timezone.utc)
     if getattr(task, "updated_at", None) is not None and task.updated_at.tzinfo is None:
         task.updated_at = task.updated_at.replace(tzinfo=timezone.utc)
+
+def update_task(db: Session, task_id: int, payload: TaskUpdate) -> Task | None:
+    task = db.get(Task, task_id)
+    if not task:
+        return None
+
+    updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        if key == "title" and isinstance(value, str):
+            setattr(task, key, value.strip())
+        else:
+            setattr(task, key, value)
+    task.updated_at = datetime.now(timezone.utc)
+
+    try:
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        _normalize_task_datetimes(task)
+        return task
+    except SQLAlchemyError:
+        db.rollback()
+        raise

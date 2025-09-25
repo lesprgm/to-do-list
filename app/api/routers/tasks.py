@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.api import deps
-from app.schemas.task import TaskCreate, TaskRead
+from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from app.schemas.error import ErrorResponse
 from app.services import tasks as task_service
 
@@ -28,6 +28,21 @@ def list_tasks(db: Session = Depends(deps.get_db)):
 )
 def create_task(task: TaskCreate, db: Session = Depends(deps.get_db)):
     return task_service.create_task(db, task)
+
+
+# ---------------------------
+# PATCH /v1/tasks/{task_id}
+# ---------------------------
+@router.patch(
+    "/{task_id}",
+    response_model=TaskRead,
+    responses={404: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(deps.get_db)):
+    updated = task_service.update_task(db, task_id, payload)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return updated
 
 
 # ---------------------------
