@@ -1,88 +1,74 @@
-from fastapi.testclient import TestClient
-import pytest
-from fastapi import FastAPI
-from app.api.routers import list_tasks as lt
-from app.api.routers import update_tasks
+from __future__ import annotations
+
 import json
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-app = FastAPI()
-app.include_router(lt.router)
+from app.api.main import app
+from app.api import deps
+from app.db import Base
 
-client = TestClient(app)
 
-def test_update_task_partial(tmp_path, monkeypatch):
-    tasks_file = tmp_path / "tasks.json"
-    monkeypatch.setattr("app.api.routers.list_tasks.TASKS_FILE", str(tasks_file))
+@pytest.fixture()
+def client(tmp_path):
+    db_path = tmp_path / "test_update.db"
+    engine = create_engine(f"sqlite+pysqlite:///{db_path}", connect_args={"check_same_thread": False})
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
 
-    test_data = [
-        
-        {"task_id": "1",
-         "title": "Do homework",
-         "description": "Math",
-         "status": "pending",
-         "priority": "high"
-         },
-         {
-            "task_id": "2",
-            "title": "Clean room",
-            "description": "Living room",
-            "status": "done",
-            "priority": "low"
-        }]
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
 
-    with open(tasks_file, 'w') as f:
-        json.dump(test_data, f)
+    app.dependency_overrides[deps.get_db] = override_get_db
 
-        # Partial Update: only status 
-    response = client.patch("/update_tasks/1", params={"status": "done"})
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+def test_update_task_partial(client: TestClient):
+    # Create a task
+    resp = client.post("/v1/tasks/", json={"title": "Do homework", "priority": "high", "description": "Math"})
+    assert resp.status_code == 201, resp.text
+    task = resp.json()
+
+    # Partial update: only status
+    response = client.patch(f"/v1/tasks/{task['id']}", json={"status": "done"})
     assert response.status_code == 200
-    updated_task = json.load(open(tasks_file))
-    assert updated_task[0]["status"] == "done"
+    assert response.json()["status"] == "done"
 
-        # Partial Update: title and priority
-    response = client.patch("/update_tasks/1", params={"title": "Homework updated", "priority": "medium"})
+    # Partial update: title and priority
+    response = client.patch(f"/v1/tasks/{task['id']}", json={"title": "Homework updated", "priority": "med"})
     assert response.status_code == 200
-    updated_task = json.load(open(tasks_file))
-    assert updated_task[0]["title"] == "Homework updated"
-    assert updated_task[0]["priority"] == "medium"
+    updated = response.json()
+    assert updated["title"] == "Homework updated"
+    assert updated["priority"] == "med"
 
-def test_update_task_invalid(tmp_path, monkeypatch):
 
-    tasks_file = tmp_path /"tasks.json"
-    monkeypatch.setattr("app.api.routers.list_tasks.TASKS_FILE", str(tasks_file))
+def test_update_task_invalid(client: TestClient):
+    # Create a task
+    resp = client.post("/v1/tasks/", json={"title": "Do homework"})
+    assert resp.status_code == 201
+    task = resp.json()
 
-    test_data = [
-        {"task_id": "1",
-         "title" : "Do homework",
-         "description": "Math",
-         "status": "pending",
-         "priority" : "high"
-         },
-    ]
-    with open(tasks_file, 'w') as f:
-        json.dump(test_data, f)
-        
-    response = client.patch("/update_tasks/1", params={"status": "ienfuenfnef"})
+    # Invalid status
+    response = client.patch(f"/v1/tasks/{task['id']}", json={"status": "ienfuenfnef"})
     assert response.status_code == 422
     body = response.json()
-    assert "status" in json.dumps(body).lower() or "invalid" in json.dumps(body).lower()
+    assert "detail" in body
 
-def test_update_task_missing(tmp_path, monkeypatch):
-    tasks_file = tmp_path / "tasks.json"
-    monkeypatch.setattr("app.api.routers.list_tasks.TASKS_FILE", str(tasks_file))
 
-    test_data = [
-        {"task_id": "1",
-         "title": "Do homework",
-         "status": "pending",
-         "priority": "high"}
-    ]
-    with open(tasks_file, 'w') as f:
-        json.dump(test_data, f)
-    
-    response = client.patch("/update_tasks/2", params={"status": "done"})
+def test_update_task_missing(client: TestClient):
+    response = client.patch("/v1/tasks/99999", json={"status": "done"})
     assert response.status_code == 404
-    assert response.json() == {"detail": "Not Found"}
+    assert response.json() == {"detail": "Task not found"}
 
 
 

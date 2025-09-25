@@ -22,8 +22,22 @@ def delete_task(db: Session, task_id: int) -> bool:
         return False
 
 
-def list_tasks(db: Session) -> list[Task]:
-    items = db.query(Task).order_by(Task.id.asc()).all()
+def list_tasks(
+    db: Session,
+    *,
+    task_id: int | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+) -> list[Task]:
+    q = db.query(Task)
+    if task_id is not None:
+        q = q.filter(Task.id == task_id)
+    if status is not None:
+        q = q.filter(Task.status == status)
+    if priority is not None:
+        q = q.filter(Task.priority == priority)
+
+    items = q.order_by(Task.id.asc()).all()
     for t in items:
         _normalize_task_datetimes(t)
     return items
