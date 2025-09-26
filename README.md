@@ -88,6 +88,15 @@ curl -sS -X POST http://127.0.0.1:8000/v1/tasks/ \
     "due_date": "2025-09-15T12:00:00Z"
   }'
 ```
+## Run
+
+### Backend (FastAPI)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+### Frontend (React)
+cd my-todo-app
+npm install
+npm start
 
 ## MCP tools for Claude Desktop
 
@@ -164,15 +173,7 @@ Restart Claude Desktop to pick up changes. Use “List available actions” to s
 │     └─ test_delete_task.py
 └─ scripts/
 ```
-## Run
 
-### Backend (FastAPI)
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-### Frontend (React)
-cd my-todo-app
-npm install
-npm start
 
 
 
