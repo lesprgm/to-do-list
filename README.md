@@ -164,6 +164,17 @@ Restart Claude Desktop to pick up changes. Use “List available actions” to s
 │     └─ test_delete_task.py
 └─ scripts/
 ```
+## Run
+
+### Backend (FastAPI)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+### Frontend (React)
+cd my-todo-app
+npm install
+npm start
+
+
 
 ## Troubleshooting
 
